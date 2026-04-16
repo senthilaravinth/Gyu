@@ -23,8 +23,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo 'Creating Docker Image...'
-                bat "dockerlogin"
-                // This command uses the Dockerfile in your root folder
+                // Ensure there is a SPACE between docker and build
                 bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
                 bat "docker build -t ${IMAGE_NAME}:latest ."
             }
