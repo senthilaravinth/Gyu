@@ -8,8 +8,6 @@ pipeline {
     environment {
         IMAGE_NAME = "student-attendance-app"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
-        // Path to your kubeconfig if Jenkins is running as a service
-        // KUBECONFIG = "C:/Users/Senthil Aravinth S/.kube/config" 
     }
 
     stages {
@@ -29,13 +27,11 @@ pipeline {
 
         stage('Kubernetes Deploy') {
             steps {
-                echo 'Deploying to Kubernetes Cluster...'
-                // Using 'bat' to trigger kubectl apply
-                // This applies all yaml files in your k8s folder
-                bat "kubectl apply -f k8s/deployment.yaml"
+                echo 'Deploying from Root Folder...'
+                // Changed from k8s/deployment.yaml to deployment.yaml
+                bat "kubectl apply -f deployment.yaml"
                 
-                echo 'Verifying Deployment...'
-                bat "kubectl get deployments"
+                echo 'Verifying Status...'
                 bat "kubectl get pods"
             }
         }
@@ -43,10 +39,10 @@ pipeline {
 
     post {
         success {
-            echo "Successfully deployed version ${IMAGE_TAG} to Kubernetes!"
+            echo "Successfully deployed to Kubernetes from the root directory!"
         }
         failure {
-            echo "Deployment failed. Check if Minikube/Docker K8s is running."
+            echo "Build failed. Ensure deployment.yaml is in the project root."
         }
     }
 }
