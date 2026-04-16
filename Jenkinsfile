@@ -2,63 +2,54 @@ pipeline {
     agent any
 
     tools {
-        // This name must match the name in 'Manage Jenkins' -> 'Global Tool Configuration'
-        maven 'Maven'
-    }
-
-    environment {
-        GITHUB_URL = "https://github.com/senthilaravinth/Gyu.git"
+        // Ensure this name matches what you configured in: 
+        // Manage Jenkins -> Global Tool Configuration -> Maven
+        maven 'Maven 3.x'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clean & Initialize') {
             steps {
-                // Pulls the code from your repository
-                checkout scm
+                echo 'Cleaning the workspace...'
+                bat 'mvn clean'
             }
         }
 
-        stage('Maven Build & Test') {
+        stage('Maven Test') {
             steps {
-                // Runs the tests we wrote for your attendance app
-                bat 'mvn clean test'
+                echo 'Running Unit Tests...'
+                // This runs the AppTest.java we fixed earlier
+                bat 'mvn test'
             }
         }
 
-        stage('Maven Package') {
+        stage('Maven Compile & Package') {
             steps {
-                // Creates the .jar file in the target folder
+                echo 'Compiling and creating the JAR file...'
+                // This skips tests because we already ran them in the previous stage
                 bat 'mvn package -DskipTests'
             }
         }
 
-        stage('Push to GitHub') {
+        stage('Archive Results') {
             steps {
-                script {
-                    // This block allows Jenkins to use your GitHub login securely
-                    withCredentials([usernamePassword(credentialsId: 'github-creds', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
-                        
-                        // We use 'bat' because your Jenkins is on Windows
-                        // 1. Set the remote URL with credentials
-                        bat "git remote set-url origin https://%GIT_USER%:%GIT_PASS%@github.com/senthilaravinth/Gyu.git"
-                        
-                        // 2. Add files, commit, and push
-                        // Note: Jenkins usually runs in a 'detached HEAD' state, so we push back to 'main'
-                        bat "git add ."
-                        bat 'git commit -m "Build successful - Updated by Jenkins [Build ${env.BUILD_NUMBER}]"'
-                        bat "git push origin HEAD:main"
-                    }
-                }
+                echo 'Storing the build artifacts...'
+                // This saves the resulting JAR file so you can download it from the Jenkins UI
+                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
     }
 
     post {
+        always {
+            // This pulls the test results into the Jenkins "Test Result Trend" graph
+            junit '**/target/surefire-reports/*.xml'
+        }
         success {
-            echo "Successfully ran Maven and pushed updates to GitHub!"
+            echo "Build Successful! You can find the JAR file in the 'target' folder."
         }
         failure {
-            echo "Pipeline failed. Check the Maven logs or Git credentials."
+            echo "Build Failed. Please check the 'Console Output' to see the Java/Maven errors."
         }
     }
 }
