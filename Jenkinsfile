@@ -2,54 +2,56 @@ pipeline {
     agent any
 
     tools {
-        // Ensure this name matches what you configured in: 
-        // Manage Jenkins -> Global Tool Configuration -> Maven
+        // Must match the name in Global Tool Configuration
         maven 'Maven'
     }
 
+    environment {
+        // Define your Docker image name here
+        IMAGE_NAME = "student-attendance-app"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+    }
+
     stages {
-        stage('Clean & Initialize') {
+        stage('Maven Build & Test') {
             steps {
-                echo 'Cleaning the workspace...'
-                bat 'mvn clean'
+                echo 'Building Jar file...'
+                bat 'mvn clean package'
             }
         }
 
-        stage('Maven Test') {
+        stage('Docker Build') {
             steps {
-                echo 'Running Unit Tests...'
-                // This runs the AppTest.java we fixed earlier
-                bat 'mvn test'
+                echo 'Creating Docker Image...'
+                bat "dockerlogin"
+                // This command uses the Dockerfile in your root folder
+                bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                bat "docker build -t ${IMAGE_NAME}:latest ."
             }
         }
 
-        stage('Maven Compile & Package') {
+        stage('Docker Verify') {
             steps {
-                echo 'Compiling and creating the JAR file...'
-                // This skips tests because we already ran them in the previous stage
-                bat 'mvn package -DskipTests'
+                echo 'Verifying Image...'
+                bat "docker images | findstr ${IMAGE_NAME}"
             }
         }
-
-        stage('Archive Results') {
+        
+        stage('Cleanup') {
             steps {
-                echo 'Storing the build artifacts...'
-                // This saves the resulting JAR file so you can download it from the Jenkins UI
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                echo 'Removing unused build layers...'
+                // Optional: Cleans up dangling images to save space on your C: drive
+                bat 'docker image prune -f'
             }
         }
     }
 
     post {
-        always {
-            // This pulls the test results into the Jenkins "Test Result Trend" graph
-            junit '**/target/surefire-reports/*.xml'
-        }
         success {
-            echo "Build Successful! You can find the JAR file in the 'target' folder."
+            echo "Successfully built Docker Image: ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         failure {
-            echo "Build Failed. Please check the 'Console Output' to see the Java/Maven errors."
+            echo "Pipeline failed. Check if Docker Desktop is running."
         }
     }
 }
