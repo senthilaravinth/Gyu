@@ -2,55 +2,51 @@ pipeline {
     agent any
 
     tools {
-        // Must match the name in Global Tool Configuration
-        maven 'Maven'
+        maven ''
     }
 
     environment {
-        // Define your Docker image name here
         IMAGE_NAME = "student-attendance-app"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        // Path to your kubeconfig if Jenkins is running as a service
+        // KUBECONFIG = "C:/Users/Senthil Aravinth S/.kube/config" 
     }
 
     stages {
-        stage('Maven Build & Test') {
+        stage('Maven Build') {
             steps {
-                echo 'Building Jar file...'
-                bat 'mvn clean package'
+                bat 'mvn clean package -DskipTests'
             }
         }
 
         stage('Docker Build') {
             steps {
-                echo 'Creating Docker Image...'
-                // Ensure there is a SPACE between docker and build
+                echo 'Building Docker Image...'
                 bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
                 bat "docker build -t ${IMAGE_NAME}:latest ."
             }
         }
 
-        stage('Docker Verify') {
+        stage('Kubernetes Deploy') {
             steps {
-                echo 'Verifying Image...'
-                bat "docker images | findstr ${IMAGE_NAME}"
-            }
-        }
-        
-        stage('Cleanup') {
-            steps {
-                echo 'Removing unused build layers...'
-                // Optional: Cleans up dangling images to save space on your C: drive
-                bat 'docker image prune -f'
+                echo 'Deploying to Kubernetes Cluster...'
+                // Using 'bat' to trigger kubectl apply
+                // This applies all yaml files in your k8s folder
+                bat "kubectl apply -f k8s/deployment.yaml"
+                
+                echo 'Verifying Deployment...'
+                bat "kubectl get deployments"
+                bat "kubectl get pods"
             }
         }
     }
 
     post {
         success {
-            echo "Successfully built Docker Image: ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Successfully deployed version ${IMAGE_TAG} to Kubernetes!"
         }
         failure {
-            echo "Pipeline failed. Check if Docker Desktop is running."
+            echo "Deployment failed. Check if Minikube/Docker K8s is running."
         }
     }
 }
